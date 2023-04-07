@@ -89,7 +89,6 @@ Default Highlight: text
   div.newnumbered:before {
     position: absolute;
     margin-left: -2em;
-    display-style: block;
   }
 
   div.numbered:before {
@@ -115,7 +114,6 @@ Default Highlight: text
   div.newnumbered li:before {
     position: absolute;
     margin-left: -4.8em;
-    display-style: block;
   }
 
   div.numbered li:before {
