@@ -244,13 +244,13 @@ Issue: How to make a distinction for `set_error_t(E)` completions of the sequenc
 The proposed design also introduces a new set of algorithms for sequence senders. These algorithms are similar to the
 existing algorithms for senders, but they operate on sequence senders instead. The proposed algorithms are:
 
-* `transform_each`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms
-are special cases of this algorithm:
-  1. `let_[value,error,stopped]_each`
-  2. `then_each`
-  3. `upon_[value,error,stopped]_each`
+* `transform_each`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:
+
+    1. `let_[value,error,stopped]_each`
+    2. `then_each`
+    3. `upon_[value,error,stopped]_each`
+
 * `zip`: Combines the elements of `n` sequence senders into a single sequence sender.
-* `ignore_all`: Ignores all elements of a sequence sender and returns a sender that completes when the input
-sequence sender completes.
+* `ignore_all`: Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.
 * `first[_value]`: Returns a sender that completes with the first element of a sequence sender.
 * `repeat`: Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
