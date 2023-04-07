@@ -49,7 +49,7 @@ Default Highlight: text
   span.ins,
   span.ins * {
     background-color: rgb(200, 250, 200);
-    < !-- color: rgb(0, 136, 0);
+    <!-- color: rgb(0, 136, 0);
     -->text-decoration: none;
   }
 
