@@ -8,8 +8,8 @@ Group: WG21
 Audience: SG1, LEWG
 Editor: Maikel Nadolski, maikel.nadolski@gmail.com
 URL: none
-!Source: <a href="https://github.com/maikel/sequence-senders/blob/main/execution.bs">GitHub</a>
-Issue Tracking: GitHub https://github.com/maikel/sequence-senders/issues
+!Source: <a href="https://github.com/maikel/sequence-senders-proposal/blob/main/execution.bs">GitHub</a>
+Issue Tracking: GitHub https://github.com/maikel/sequence-senders-proposal/issues
 Metadata Order: Editor, This Version, Source, Issue Tracking, Project, Audience
 Markup Shorthands: markdown yes
 Toggle Diffs: no
