@@ -1,0 +1,144 @@
+<pre class='metadata'>
+Title: Sequence Senders
+H1: Sequence Senders
+Shortname: DXXXX
+Revision: 1
+Status: D
+Group: WG21
+Audience: SG1, LEWG
+Editor: Maikel Nadolski, maikel.nadolski@gmail.com
+URL: none
+!Source: <a href="https://github.com/maikel/sequence-senders/blob/main/execution.bs">GitHub</a>
+Issue Tracking: GitHub https://github.com/maikel/sequence-senders/issues
+Metadata Order: Editor, This Version, Source, Issue Tracking, Project, Audience
+Markup Shorthands: markdown yes
+Toggle Diffs: no
+No Abstract: yes
+Default Biblio Display: inline
+Default Highlight: text
+</pre>
+
+<style>
+pre {
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+table, th, tr, td {
+  border: 2px solid black !important;
+}
+@media (prefers-color-scheme: dark) {
+  table, th, tr, td {
+    border: 2px solid white !important;
+  }
+}
+.ins, ins, ins *, span.ins, span.ins * {
+  background-color: rgb(200, 250, 200);
+  <!-- color: rgb(0, 136, 0); -->
+  text-decoration: none;
+}
+.del, del, del *, span.del, span.del * {
+  background-color: rgb(250, 200, 200);
+  color: rgb(255, 0, 0);
+  text-decoration: line-through;
+  text-decoration-color: rgb(255, 0, 0);
+}
+math, span.math {
+  font-family: serif;
+  font-style: italic;
+}
+ul {
+  list-style-type: "— ";
+}
+blockquote {
+  counter-reset: paragraph;
+}
+div.numbered, div.newnumbered {
+  margin-left: 2em;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+div.numbered:before, div.newnumbered:before {
+  position: absolute;
+  margin-left: -2em;
+  display-style: block;
+}
+div.numbered:before {
+  content: counter(paragraph);
+  counter-increment: paragraph;
+}
+div.newnumbered:before {
+  content: "�";
+}
+div.numbered ul, div.newnumbered ul {
+  counter-reset: list_item;
+}
+div.numbered li, div.newnumbered li {
+  margin-left: 3em;
+}
+div.numbered li:before, div.newnumbered li:before {
+  position: absolute;
+  margin-left: -4.8em;
+  display-style: block;
+}
+div.numbered li:before {
+  content: "(" counter(paragraph) "." counter(list_item) ")";
+  counter-increment: list_item;
+}
+div.newnumbered li:before {
+  content: "(�." counter(list_item) ")";
+  counter-increment: list_item;
+}
+div.ed-note {
+  color: blue !important;
+  margin-left: 2em;
+}
+div.ed-note:before {
+  content: "[Editorial note: ";
+  font-style: italic;
+}
+div.ed-note:after {
+  content: " -- end note]";
+  font-style: italic;
+}
+div.ed-note * {
+  color: blue !important;
+  margin-top: 0em;
+  margin-bottom: 0em;
+}
+div.ed-note blockquote {
+  margin-left: 2em;
+}
+div.wg21note:before, span.wg21note:before {
+  content: "[Note: ";
+  font-style: italic;
+}
+div.wg21note:after, span.wg21note:after {
+  content: " -- end note]";
+  font-style: italic;
+}
+h5 {
+  font-style: normal; /* turn off italics of h5 headers */
+}
+</style>
+
+# Introduction # {#intro}
+
+The proposal P2300 introduced the sender and receiver concepts which represent and compose asynchronous operations. These abstractions provide a powerful mechanism for building composable and efficient asynchronous code. However, they lack the ability to represent potentially infinite sequences of values that may arrive in parallel.
+This proposal extends the existing sender and receiver concepts to include the sequence sender concepts, which is a sender that emits a sequence of values over time.
+
+# Motivation #{#motivation}
+
+There are many situations where it is useful to represent a potentially infinite sequence of values that may arrive asynchronously. For example, accepting new network connections or handling user input in a graphical user interface. In such cases, it is often not feasible to represent the sequence as a finite range of values since new values may arrive at any time.
+
+To address this limitation, we propose the concept of "sequence senders", which extend the capabilities of senders to represent possibly infinite sequences of values that may arrive in parallel. Sequence senders utilize an additional CPO, `set_next`, to signal the arrival of a sequence element.
+
+Sequence senders are inspired by the `Observable` concept of the reactive extensions (Rx) library. The Rx library provides a powerful mechanism for building reactive, event-driven applications by representing sequences of events as observables. Sequence senders extend the sender/receiver abstractions to provide a similar mechanism in C++ for representing asynchronous sequences of values.
+
+
+# Examples #{#examples}
+
+## Async Resources
+
+The proposed C++ extension, DXXXX (TBD), introduces two CPOs, `async_resource::open` and `async_resource::run`, to define async resources within the S/R framework. The `open` CPO returns a sender that completes with a handle to the acquired resource and a channel in the form of continuations that can be used to perform any user code on the acquired resource. On the other hand, the `run` CPO does the actual work of acquiring and releasing the resource and returns a sender of no value. When the `run` sender is stopped, it releases any acquired resources. Combining `open` and `run` with a `when_any` algorithm provides a safe way to acquire and release resources in a concurrent environment.
+
+However, using sequence senders, we can further simplify this model since sequence senders naturally provide an additional channel with set_next. In this case, only one CPO, `run`, would be needed to safely use resources in a concurrent environment. The `run` CPO would return a sequence sender that sends only one value, which is a handle to the acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource. Moreover, a default implementation for such a `run` sequence sender can be provided for any class `Resource` that provides implementations for `open` and `close` CPOs. A reference implementation can be found in `NVIDIA/stdexec`.
