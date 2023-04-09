@@ -1563,7 +1563,7 @@ Possible extra rowspan handling
   <meta content="Bikeshed version d9bd89757, updated Thu Mar 23 10:06:53 2023 -0700" name="generator">
   <link href="none" rel="canonical">
   <link href="https://isocpp.org/favicon.ico" rel="icon">
-  <meta content="5a601c7a9b697c3f28f1439ece2a69bde76ab03b" name="document-revision">
+  <meta content="ea0a6cc3701eb61ca8ab0c2ede36e081763d5a38" name="document-revision">
 <style>
   pre {
     margin-top: 0px;
@@ -2239,7 +2239,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">DXXXXR1<br>Sequence Senders</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Draft Proposal, <time class="dt-updated" datetime="2023-04-07">2023-04-07</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Draft Proposal, <time class="dt-updated" datetime="2023-04-09">2023-04-09</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt class="editor">Authors:
@@ -2299,12 +2299,13 @@ observables. Sequence senders extend the sender/receiver abstractions to provide
 representing asynchronous sequences of values.</p>
    <h2 class="heading settled" data-level="3" id="examples"><span class="secno">3. </span><span class="content">Examples</span><a class="self-link" href="#examples"></a></h2>
    <h3 class="heading settled" data-level="3.1" id="async-resources"><span class="secno">3.1. </span><span class="content">Async Resources</span><a class="self-link" href="#async-resources"></a></h3>
-   <p>The proposed C++ extension, DXXXX (TBD), introduces two CPOs, <code class="highlight">async_resource::open</code> and <code class="highlight">async_resource::run</code>, to
+   <p>The proposal, DXXXX (TBD), async-resource, introduces three CPOs, <code class="highlight">open</code>, <code class="highlight">close</code> and <code class="highlight">run</code>, to
 define async resources within the S/R framework. The <code class="highlight">open</code> CPO returns a sender that completes with a handle to the
-acquired resource and is used as a channel to perform any user code on the acquired resource. On the other hand, the <code class="highlight">run</code> CPO does the actual work of acquiring and releasing the resource and returns a
-sender of no value. When the <code class="highlight">run</code> sender is stopped, it releases any acquired resources. Combining <code class="highlight">open</code> and <code class="highlight">run</code> with a <code class="highlight">when_any</code> algorithm provides a safe way to acquire and release resources in a concurrent environment.</p>
+acquired resource and is used as a channel to perform any user code on the acquired resource. 
+The <code class="highlight">close</code> CPO completes when the resource have been released.
+The <code class="highlight">run</code> CPO does the actual work of acquiring and releasing the resource and both <code class="highlight">open</code> and <code class="highlight">close</code> merely act as signals to start either operation. <code class="highlight">run</code> returns a sender of no value and completes when an acquired resource have been released. When the <code class="highlight">run</code> sender is stopped or an error occurs, it releases any acquired resources. Combining <code class="highlight">open</code>, <code class="highlight">close</code>, and <code class="highlight">run</code> with an enclosing <code class="highlight">when_all</code> algorithm provides a safe way to acquire and release resources in a concurrent environment.</p>
    <p>However, using sequence senders, we can further simplify this model since sequence senders naturally provide an
-additional channel with set_next. In this case, only one CPO, <code class="highlight">run</code>, would be needed to safely use resources in a
+additional channel with its <code class="highlight">set_next</code> CPO. In this case, only one CPO, <code class="highlight">run</code>, would be needed to safely use resources in a
 concurrent environment. The <code class="highlight">run</code> CPO would return a sequence sender that sends only one value, which is a handle to the
 acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource. Moreover, a
 default implementation for such a <code class="highlight">run</code> sequence sender can be provided for any class <code class="highlight">Resource</code> that provides
