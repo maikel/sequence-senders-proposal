@@ -197,15 +197,16 @@ representing asynchronous sequences of values.
 
 ## Async Resources
 
-The proposed C++ extension, DXXXX (TBD), introduces two CPOs, `async_resource::open` and `async_resource::run`, to
+The proposal, DXXXX (TBD), async-resource, introduces three CPOs, `open`, `close` and `run`, to
 define async resources within the S/R framework. The `open` CPO returns a sender that completes with a handle to the
-acquired resource and is used as a channel to perform any user code on the acquired resource. On the other hand, the
-`run` CPO does the actual work of acquiring and releasing the resource and returns a
-sender of no value. When the `run` sender is stopped, it releases any acquired resources. Combining `open` and `run`
-with a `when_any` algorithm provides a safe way to acquire and release resources in a concurrent environment.
+acquired resource and is used as a channel to perform any user code on the acquired resource. 
+The `close` CPO completes when the resource have been released.
+The `run` CPO does the actual work of acquiring and releasing the resource and both `open` and `close` merely act as signals to start either operation.
+`run` returns a sender of no value and completes when an acquired resource have been released. When the `run` sender is stopped or an error occurs, it releases any acquired resources. Combining `open`, `close`, and `run`
+with an enclosing `when_all` algorithm provides a safe way to acquire and release resources in a concurrent environment.
 
 However, using sequence senders, we can further simplify this model since sequence senders naturally provide an
-additional channel with set_next. In this case, only one CPO, `run`, would be needed to safely use resources in a
+additional channel with its `set_next` CPO. In this case, only one CPO, `run`, would be needed to safely use resources in a
 concurrent environment. The `run` CPO would return a sequence sender that sends only one value, which is a handle to the
 acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource. Moreover, a
 default implementation for such a `run` sequence sender can be provided for any class `Resource` that provides
