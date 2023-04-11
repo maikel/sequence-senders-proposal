@@ -1563,7 +1563,7 @@ Possible extra rowspan handling
   <meta content="Bikeshed version d9bd89757, updated Thu Mar 23 10:06:53 2023 -0700" name="generator">
   <link href="none" rel="canonical">
   <link href="https://isocpp.org/favicon.ico" rel="icon">
-  <meta content="59fd804be24914cc6a5052ebf996395b6c3a42e0" name="document-revision">
+  <meta content="9f94270a9ac209e011092aaa05ebf6106c1049d7" name="document-revision">
 <style>
   pre {
     margin-top: 0px;
@@ -2283,8 +2283,16 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
     <li>
      <a href="#specification"><span class="secno">5</span> <span class="content">Specification</span></a>
      <ol class="toc">
-      <li><a href="#receiver-concepts"><span class="secno">5.1</span> <span class="content">Receiver concepts</span></a>
-      <li><a href="#sender-concepts"><span class="secno">5.2</span> <span class="content">Sender concepts</span></a>
+      <li>
+       <a href="#receiver-concepts"><span class="secno">5.1</span> <span class="content">Receiver concepts</span></a>
+       <ol class="toc">
+        <li><a href="#set_next-execset_next"><span class="secno">5.1.1</span> <span class="content"><code class="highlight">set_next</code> [exec.set_next]</span></a>
+       </ol>
+      <li>
+       <a href="#sender-concepts"><span class="secno">5.2</span> <span class="content">Sender concepts</span></a>
+       <ol class="toc">
+        <li><a href="#executionsequence_connect-execsequence_connect"><span class="secno">5.2.1</span> <span class="content"><code class="highlight">execution::sequence_connect</code> [exec.sequence_connect]</span></a>
+       </ol>
      </ol>
    </ol>
   </nav>
@@ -2322,8 +2330,11 @@ acquired resource. Whenever the sequence sender stops, it would automatically re
 Its function signature is based on senders, i. e.</p>
 <pre class="language-cpp highlight"><c- n>sender_of</c-><c- o>&lt;</c-><c- n>set_value_t</c-><c- p>()</c-><c- o>></c-> <c- k>auto</c-> <c- n>set_next</c-><c- p>(</c-><c- n>receiver</c-> <c- k>auto</c-><c- o>&amp;</c-> <c- n>rcvr</c-><c- p>,</c-> <c- n>sender</c-> <c- k>auto</c-><c- o>&amp;&amp;</c-> <c- n>sndr</c-><c- p>);</c->
 </pre>
-   The <code class="highlight">set_next</code> CPO expects an input sender that completes with values and returns a sender that completes with <code class="highlight">set_value_t()</code>.
-This allows <code class="highlight">set_next</code> to be called without having a value ready and gives fine-grained control over elementwise operations. 
+   This allows <code class="highlight">set_next</code> to be called without having a value ready and gives fine-grained control over elementwise operations.
+This CPO expects an input sender that completes with some values and returns a sender that completes with <code class="highlight">set_value_t()</code>.
+The returned sender completes if the values passed to the receiver have successfully been processed and it is the analogue of a body of a for loop. 
+   <p>Only if all operations associated to a sender that was returned from <code class="highlight">set_next</code> have been completed, the receiver is allowed to be completed.
+This is known as the sequence receiver contract.</p>
    <h3 class="heading settled" data-level="4.2" id="sequence-sender"><span class="secno">4.2. </span><span class="content">Sequence Sender</span><a class="self-link" href="#sequence-sender"></a></h3>
    <p>Each sequence sender is also a sender and provides an implementation of the <code class="highlight">get_completion_signatures_t</code> CPO.
 However, instead of using <code class="highlight">connect</code> to connect to receivers, sequence senders use <code class="highlight">sequence_connect</code> to connect to sequence receivers.
@@ -2421,6 +2432,11 @@ The <code class="highlight">sequence_receiver_of</code> concept defines the requ
     <c- n>valid</c-><c- o>-</c-><c- n>next</c-><c- o>-</c-><c- n>completions</c-><c- o>-</c-><c- k>for</c-><c- o>&lt;</c-><c- n>Signatures</c-><c- p>,</c-> <c- n>R</c-><c- o>></c-><c- p>;</c->
 </pre>
    </ol>
+   <h4 class="heading settled" data-level="5.1.1" id="set_next-execset_next"><span class="secno">5.1.1. </span><span class="content"><code class="highlight">set_next</code> [exec.set_next]</span><a class="self-link" href="#set_next-execset_next"></a></h4>
+   <ol>
+    <li data-md>
+     <p><code class="highlight">set_next</code> is a function that transforms an input sender into a sender that completes with <code class="highlight">set_value_t()</code> if the completion of the input sender has successfully been processed. The expression <code class="highlight">set_next(R, S)</code> for some subexpressions <code class="highlight">R</code> and <code class="highlight">S</code> is ill-formed if <code class="highlight">R</code> is not an lvalue. Otherwise the expression is equivalent to <code class="highlight">mandate-nothrow-call(tag_invoke, set_next, R, S)</code>.</p>
+   </ol>
    <h3 class="heading settled" data-level="5.2" id="sender-concepts"><span class="secno">5.2. </span><span class="content">Sender concepts</span><a class="self-link" href="#sender-concepts"></a></h3>
 <pre class="language-cpp highlight"><c- k>template</c-> <c- o>&lt;</c-><c- k>class</c-> <c- nc>S</c-><c- p>,</c-> <c- k>class</c-> <c- nc>R</c-><c- o>></c->
 <c- k>concept</c-> <c- nc>sequence_sender_to</c-> <c- o>=</c->
@@ -2430,6 +2446,24 @@ The <code class="highlight">sequence_receiver_of</code> concept defines the requ
        <c- p>{</c-> <c- n>sequence_connect</c-><c- p>(</c-><c- n>forward</c-><c- o>&lt;</c-><c- n>S</c-><c- o>></c-><c- p>(</c-><c- n>sndr</c-><c- p>),</c-> <c- n>forward</c-><c- o>&lt;</c-><c- n>R</c-><c- o>></c-><c- p>(</c-><c- n>rcvr</c-><c- p>))</c-> <c- p>}</c-> <c- o>-></c-> <c- n>operation_state</c-><c- p>;</c->
      <c- p>};</c->
 </pre>
+   <h4 class="heading settled" data-level="5.2.1" id="executionsequence_connect-execsequence_connect"><span class="secno">5.2.1. </span><span class="content"><code class="highlight">execution::sequence_connect</code> [exec.sequence_connect]</span><a class="self-link" href="#executionsequence_connect-execsequence_connect"></a></h4>
+   <ol>
+    <li data-md>
+     <p><code class="highlight">sequence_connect</code> connects ([async.op]) a sequence sender with a sequence receiver, producing an operation state object that is associated with the resulting asynchronous operation.</p>
+     <p>The name <code class="highlight">sequence_connect</code> denotes a customization point object. For subexpressions <code class="highlight">s</code> and <code class="highlight">r</code>, let <code class="highlight">S</code> be <code class="highlight">decltype((s))</code> and <code class="highlight">R</code> be <code class="highlight">decltype((r))</code>.
+If <code class="highlight">S</code> does not satisfy <code class="highlight">sender</code> or if <code class="highlight">R</code> does not satisfy <code class="highlight">receiver</code>, <code class="highlight">sequence_connect(s, r)</code> is ill-formed. Otherwise, the expression <code class="highlight">sequence_connect(s, r)</code> is expression-equivalent to:</p>
+     <p><code class="highlight">tag_invoke(connect, s, r)</code>, if the constraints below are satisfied. If the function selected by <code class="highlight">tag_invoke</code> does not return an operation state for which <code class="highlight">start</code> starts the associated asynchronous operation, the behavior of calling <code class="highlight">sequence_connect(s, r)</code> is undefined.</p>
+     <ul>
+      <li data-md>
+       <p>Constraints:</p>
+<pre class="highlight">sender_in&lt;S, env_of_t&lt;R>> &amp;&amp;
+sequence_receiver_of&lt;R, completion_signatures_of_t&lt;S, env_of_t&lt;R>>> &amp;&amp;
+tag_invocable&lt;connect_t, S, R>
+</pre>
+      <li data-md>
+       <p>Mandates: The type of the <code class="highlight">tag_invoke</code> expression above satisfies <code class="highlight">operation_state</code>.</p>
+     </ul>
+   </ol>
   </main>
 <script>
 (function() {
