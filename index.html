@@ -1563,7 +1563,7 @@ Possible extra rowspan handling
   <meta content="Bikeshed version d9bd89757, updated Thu Mar 23 10:06:53 2023 -0700" name="generator">
   <link href="none" rel="canonical">
   <link href="https://isocpp.org/favicon.ico" rel="icon">
-  <meta content="ea0a6cc3701eb61ca8ab0c2ede36e081763d5a38" name="document-revision">
+  <meta content="fa6de5fdf4066806a1c5b3968e849af192437df5" name="document-revision">
 <style>
   pre {
     margin-top: 0px;
@@ -2239,18 +2239,15 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">DXXXXR1<br>Sequence Senders</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Draft Proposal, <time class="dt-updated" datetime="2023-04-09">2023-04-09</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Draft Proposal, <time class="dt-updated" datetime="2023-04-11">2023-04-11</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
-     <dt class="editor">Authors:
-     <dd class="editor p-author h-card vcard"><a class="p-name fn u-email email" href="mailto:lewissbaker@gmail.com">Lewis Baker (?)</a>
-     <dd class="editor p-author h-card vcard"><a class="p-name fn u-email email" href="mailto:kirk.shoop@gmail.com">Kirk Shoop (?)</a>
+     <dt class="editor">Author:
      <dd class="editor p-author h-card vcard"><a class="p-name fn u-email email" href="mailto:maikel.nadolski@gmail.com">Maikel Nadolski</a>
      <dt>Source:
      <dd><a href="https://github.com/maikel/sequence-senders-proposal/blob/main/execution.bs">GitHub</a>
      <dt>Issue Tracking:
      <dd><a href="https://github.com/maikel/sequence-senders-proposal/issues">GitHub</a>
-     <dd><a href="#issues-index">Inline In Spec</a>
      <dt>Project:
      <dd>ISO/IEC JTC1/SC22/WG21 14882: Programming Language — C++
      <dt>Audience:
@@ -2277,7 +2274,6 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
       <li><a href="#sequence-sender"><span class="secno">4.2</span> <span class="content">Sequence Sender</span></a>
       <li><a href="#sequence-sender-algorithms"><span class="secno">4.3</span> <span class="content">Sequence Sender Algorithms</span></a>
      </ol>
-    <li><a href="#issues-index"><span class="secno"></span> <span class="content">Issues Index</span></a>
    </ol>
   </nav>
   <main>
@@ -2289,7 +2285,8 @@ This proposal extends the existing sender and receiver concepts to include the s
 sender that emits a sequence of values over time.</p>
    <h2 class="heading settled" data-level="2" id="motivation"><span class="secno">2. </span><span class="content">Motivation</span><a class="self-link" href="#motivation"></a></h2>
    <p>There are many situations where it is useful to represent a potentially infinite sequence of values that may arrive
-asynchronously. For example, accepting new network connections or handling user input in a graphical user interface.</p>
+asynchronously and in parallel.
+For example, handling user input in a graphical user interface or accepting new network connections.</p>
    <p>To address this limitation, we propose the concept of "sequence senders", which extend the capabilities of senders to
 represent possibly infinite sequences of values that may arrive in parallel. Sequence senders utilize an additional
 receiver CPO, <code class="highlight">set_next</code>, to signal the arrival of a sequence element.</p>
@@ -2309,22 +2306,29 @@ additional channel with its <code class="highlight">set_next</code> CPO. In this
 concurrent environment. The <code class="highlight">run</code> CPO would return a sequence sender that sends only one value, which is a handle to the
 acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource. Moreover, a
 default implementation for such a <code class="highlight">run</code> sequence sender can be provided for any class <code class="highlight">Resource</code> that provides
-implementations for <code class="highlight">open</code> and <code class="highlight">close</code> CPOs. A reference implementation can be found in <code class="highlight">NVIDIA/stdexec</code>.</p>
-   <p class="note" role="note"><span class="marker">Note:</span> Maikel: This is my interpretation of the proposed extension. We actually have to keep this up-to-date with Kirk’s proposal.</p>
+implementations for <code class="highlight">do_open</code> and <code class="highlight">do_close</code> CPOs.</p>
    <h2 class="heading settled" data-level="4" id="design-overview"><span class="secno">4. </span><span class="content">Design Overview</span><a class="self-link" href="#design-overview"></a></h2>
    <h3 class="heading settled" data-level="4.1" id="sequence-receiver"><span class="secno">4.1. </span><span class="content">Sequence Receiver</span><a class="self-link" href="#sequence-receiver"></a></h3>
-   <p>The proposed design extends the existing receiver concept with an additional <code class="highlight">set_next</code> CPO. <code class="highlight">set_next</code> is similar to
-the <code class="highlight">set_value</code> CPO, but instead of completing the receiver, it signals the arrival of a new element in the sequence. The <code class="highlight">set_next</code> CPO expects an input sender that completes with values and returns a sender that completes with <code class="highlight">set_value_t()</code>.
-This allows <code class="highlight">set_next</code> to be called without having a value ready, and its body can usually be a simple expression from
-input sender to result sender.</p>
+   <p>The proposed design extends the existing receiver concept with an additional <code class="highlight">set_next</code> CPO. <code class="highlight">set_next</code> is similar to the <code class="highlight">set_value</code> CPO, but instead of completing the receiver, it signals the arrival of a new element in the sequence.
+Its function signature is based on senders, i. e. it takes a lvalue reference to the receiver and an input sender,</p>
+<pre class="language-cpp highlight"><c- k>struct</c-> <c- nc>set_next_t</c-> <c- p>{</c->
+  <c- k>template</c-> <c- o>&lt;</c-><c- n>receiver</c-> <c- n>Receiver</c-><c- p>,</c-> <c- n>sender</c-> <c- n>Sender</c-><c- o>></c->
+    <c- k>requires</c-> <c- n>tag_invocable</c-><c- o>&lt;</c-><c- n>set_next_t</c-><c- p>,</c-> <c- n>Receiver</c-><c- o>&amp;</c-><c- p>,</c-> <c- n>Sender</c-><c- o>></c->
+          <c- o>&amp;&amp;</c-> <c- n>sender_of</c-><c- o>&lt;</c-><c- n>tag_invoke_result_t</c-><c- o>&lt;</c-><c- n>set_next_t</c-><c- p>,</c-> <c- n>Receiver</c-><c- o>&amp;</c-><c- p>,</c-> <c- n>Sender</c-><c- o>></c-><c- p>,</c-> <c- n>set_value_t</c-><c- p>()</c-><c- o>></c->
+  <c- k>auto</c-> <c- k>operator</c-><c- p>()(</c-><c- n>Receiver</c-><c- o>&amp;</c-> <c- n>rcvr</c-><c- p>,</c-> <c- n>Sender</c-><c- o>&amp;&amp;</c-> <c- n>sndr</c-><c- p>)</c-> <c- k>const</c-> <c- k>noexcept</c->
+    <c- o>-></c-> <c- n>tag_invoke_result_t</c-><c- o>&lt;</c-><c- n>set_next_t</c-><c- p>,</c-> <c- n>Receiver</c-><c- o>&amp;</c-><c- p>,</c-> <c- n>Sender</c-><c- o>></c-> <c- p>{</c->
+    <c- k>static_assert</c-><c- p>(</c-><c- n>nothrow_tag_invocable</c-><c- o>&lt;</c-><c- n>set_next_t</c-><c- p>,</c-> <c- n>Receiver</c-><c- o>&amp;</c-><c- p>,</c-> <c- n>Sender</c-><c- o>></c-><c- p>);</c->
+    <c- k>return</c-> <c- n>tag_invoke</c-><c- p>(</c-><c- o>*</c-><c- k>this</c-><c- p>,</c-> <c- n>rcvr</c-><c- p>,</c-> <c- p>(</c-><c- n>Sender</c-><c- o>&amp;&amp;</c-><c- p>)</c-> <c- n>sndr</c-><c- p>);</c->
+  <c- p>}</c->
+<c- p>};</c->
+</pre>
+   The <code class="highlight">set_next</code> CPO expects an input sender that completes with values and returns a sender that completes with <code class="highlight">set_value_t()</code>.
+This allows <code class="highlight">set_next</code> to be called without having a value ready and gives fine-grained control over elementwise operations. 
+   <p>Given any completion signatures <code class="highlight">Sigs</code> and a receiver <code class="highlight">R rcvr</code>. <code class="highlight">R</code> satisfies the <code class="highlight">sequence_reveiver_of&lt;R, Sigs></code> concept if <code class="highlight">set_next(rcvr, (S&amp;&amp;) sndr);</code> is valid expression for an anonymous sender <code class="highlight">S sndr</code> in <code class="highlight">env_of_t&lt;R></code> with <code class="highlight">Sigs = completion_signatures_of_t&lt;S, env_of_t&lt;R>></code>.</p>
    <h3 class="heading settled" data-level="4.2" id="sequence-sender"><span class="secno">4.2. </span><span class="content">Sequence Sender</span><a class="self-link" href="#sequence-sender"></a></h3>
-   <p>Sequence senders connect to sequence receivers through a new CPO called <code class="highlight">sequence_connect</code>.</p>
-   <p>Each sequence sender is also a sender and provides an implementation of the <code class="highlight">get_completion_signatures_t</code> CPO. However,
-instead of using <code class="highlight">connect</code> to connect to receivers, sequence senders use <code class="highlight">sequence_connect</code> to connect to sequence
-receivers.
-All sequence senders complete with <code class="highlight">set_value_t()</code> on their success path and the <code class="highlight">completion_signatures</code> of a sequence
-sender describe the <code class="highlight">completion_signatures</code> of the input sender passed to <code class="highlight">set_next</code>.</p>
-   <p class="issue" id="issue-15b89642"><a class="self-link" href="#issue-15b89642"></a> How to make a distinction for <code class="highlight">set_error_t(E)</code> completions of the sequence-sender and its input senders? Could they be different. Maybe we shouldn’t reuse the <code class="highlight">completion_signatures</code>.</p>
+   <p>Each sequence sender is also a sender and provides an implementation of the <code class="highlight">get_completion_signatures_t</code> CPO.
+However, instead of using <code class="highlight">connect</code> to connect to receivers, sequence senders use <code class="highlight">sequence_connect</code> to connect to sequence receivers.
+All sequence senders complete with <code class="highlight">set_value_t()</code> on their success path and the <code class="highlight">completion_signatures</code> of a sequence sender describe the <code class="highlight">completion_signatures</code> of the input sender passed to <code class="highlight">set_next</code>.</p>
    <h3 class="heading settled" data-level="4.3" id="sequence-sender-algorithms"><span class="secno">4.3. </span><span class="content">Sequence Sender Algorithms</span><a class="self-link" href="#sequence-sender-algorithms"></a></h3>
    <p>The proposed design also introduces a new set of algorithms for sequence senders. These algorithms are similar to the
 existing algorithms for senders, but they operate on sequence senders instead. The proposed algorithms are:</p>
@@ -2478,7 +2482,3 @@ existing algorithms for senders, but they operate on sequence senders instead. T
 
 })();
 </script>
-  <h2 class="no-num no-ref heading settled" id="issues-index"><span class="content">Issues Index</span><a class="self-link" href="#issues-index"></a></h2>
-  <div style="counter-reset:issue">
-   <div class="issue"> How to make a distinction for <code class="highlight">set_error_t(E)</code> completions of the sequence-sender and its input senders? Could they be different. Maybe we shouldn’t reuse the <code class="highlight">completion_signatures</code>. <a class="issue-return" href="#issue-15b89642" title="Jump to section">↵</a></div>
-  </div>
