@@ -245,31 +245,17 @@ All sequence senders complete with `set_value_t()` on their success path and the
 The proposed design also introduces a new set of algorithms for sequence senders. These algorithms are similar to the
 existing algorithms for senders, but they operate on sequence senders instead. The proposed algorithms are:
 
-* `once(sender) -> sequence-sender`: Takes a sender and returns a sequence sender that emits the value of the input sender once.
+* `once(sender) -> sequence-sender`:
+    Takes a sender and returns a sequence sender that emits the value of the input sender once.
 
     Example:
     ```cpp
-      auto r = execution::once(execution::just(42));
-      auto i = execution::sync_wait(execution::first_value(r)).value(); // returns 42
+      auto once = execution::once(execution::just(42));
+      auto i = execution::sync_wait(execution::first_value(once)).value(); // returns 42
     ```
 
-* `ignore_all(sequence-sender) -> sender`: Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.
-
-    Example:
-    ```cpp
-      auto r = execution::once(execution::just(42));
-      execution::sync_wait(execution::ignore_all(once));
-    ```
-
-* `first_value(seqeuence-sender) -> sender`: Returns a sender that completes with the first element of a sequence sender.
-
-    Example:
-    ```cpp
-      auto first = execution::first_value(execution::repeat(execution::just(42)));
-      auto i = execution::sync_wait(r).value(); // returns 42
-    ```
-
-* `repeat`: Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
+* `repeat`:
+    Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
     If one of the elements completes with `set_stopped_t()` it is interpreted as a break signal and the sequence sender completes with `set_value_t()`.
 
     Example:
@@ -282,6 +268,23 @@ existing algorithms for senders, but they operate on sequence senders instead. T
       execution::sync_wait(execution::ignore_all(r)); // repeat will complete with set_value_t()
     ```
 
+* `ignore_all(sequence-sender) -> sender`:
+    Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.
+
+    Example:
+    ```cpp
+      auto once = execution::once(execution::just(42));
+      execution::sync_wait(execution::ignore_all(once));
+    ```
+
+* `first_value(seqeuence-sender) -> sender`: Returns a sender that completes with the first element of a sequence sender.
+
+    Example:
+    ```cpp
+      auto first = execution::first_value(execution::repeat(execution::just(42)));
+      auto i = execution::sync_wait(first).value(); // returns 42
+    ```
+
 * `transform_each`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:
     1. `let_[value,error,stopped]_each`
     2. `then_each(input, f)` is equivalent to `transform_each(input, then(f))`
@@ -289,10 +292,9 @@ existing algorithms for senders, but they operate on sequence senders instead. T
 
     Example:
     ```cpp
-    auto snd1 = execution::then_each(input, [](auto&&... args) {
-      std::cout << "Args of sequence element: ";
-      (std::cout << args, ...);
-      std::cout << std::endl;
+    auto just_values = execution::once(execution::just(0, 1, 2));
+    auto snd1 = execution::then_each(just_values, [](int i, int j, int k) {
+      std::cout << i << " " << j << " " << k << std::endl;
     });
     ```
 
