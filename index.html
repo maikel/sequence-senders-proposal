@@ -1563,7 +1563,7 @@ Possible extra rowspan handling
   <meta content="Bikeshed version d9bd89757, updated Thu Mar 23 10:06:53 2023 -0700" name="generator">
   <link href="none" rel="canonical">
   <link href="https://isocpp.org/favicon.ico" rel="icon">
-  <meta content="729913dd647517dda561802595d554a4f6c34737" name="document-revision">
+  <meta content="59fd804be24914cc6a5052ebf996395b6c3a42e0" name="document-revision">
 <style>
   pre {
     margin-top: 0px;
@@ -2299,8 +2299,7 @@ sender that emits a sequence of values over time.</p>
    <p>There are many situations where it is useful to represent a potentially infinite sequence of values that may arrive
 asynchronously and in parallel.
 For example, handling user input in a graphical user interface or accepting new network connections.</p>
-   <p>To address this limitation, we propose the concept of "sequence senders", which extend the capabilities of senders to
-represent possibly infinite sequences of values that may arrive in parallel. Sequence senders utilize an additional
+   <p>To address this limitation, we propose the concept of "sequence senders". Sequence senders utilize an additional
 receiver CPO, <code class="highlight">set_next</code>, to signal the arrival of a sequence element.</p>
    <p>Sequence senders are inspired by the <code class="highlight">Observable</code> concept of the reactive extensions (Rx) library. The Rx library
 provides a powerful mechanism for building reactive, event-driven applications by representing sequences of events as
@@ -2325,7 +2324,6 @@ Its function signature is based on senders, i. e.</p>
 </pre>
    The <code class="highlight">set_next</code> CPO expects an input sender that completes with values and returns a sender that completes with <code class="highlight">set_value_t()</code>.
 This allows <code class="highlight">set_next</code> to be called without having a value ready and gives fine-grained control over elementwise operations. 
-   <p>Given any completion signatures <code class="highlight">Sigs</code> and a receiver <code class="highlight">R rcvr</code>. <code class="highlight">R</code> satisfies the <code class="highlight">sequence_reveiver_of&lt;R, Sigs></code> concept if <code class="highlight">set_next(rcvr, (S&amp;&amp;) sndr);</code> is valid expression for an anonymous sender <code class="highlight">S sndr</code> in <code class="highlight">env_of_t&lt;R></code> with <code class="highlight">Sigs = completion_signatures_of_t&lt;S, env_of_t&lt;R>></code>.</p>
    <h3 class="heading settled" data-level="4.2" id="sequence-sender"><span class="secno">4.2. </span><span class="content">Sequence Sender</span><a class="self-link" href="#sequence-sender"></a></h3>
    <p>Each sequence sender is also a sender and provides an implementation of the <code class="highlight">get_completion_signatures_t</code> CPO.
 However, instead of using <code class="highlight">connect</code> to connect to receivers, sequence senders use <code class="highlight">sequence_connect</code> to connect to sequence receivers.
@@ -2374,7 +2372,7 @@ Ignores all elements of a sequence sender and returns a sender that completes wh
    <h4 class="heading settled" data-level="4.3.3" id="sequence-sender-adaptors"><span class="secno">4.3.3. </span><span class="content">Sequence Sender Adaptors</span><a class="self-link" href="#sequence-sender-adaptors"></a></h4>
    <ul>
     <li data-md>
-     <p><code class="highlight">transform_each(sequence-sender) -> sequence-sender</code>: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:</p>
+     <p><code class="highlight">transform_each(sequence-sender, sender-adaptor) -> sequence-sender</code>: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:</p>
      <ol>
       <li data-md>
        <p><code class="highlight">let_[value,error,stopped]_each</code></p>
