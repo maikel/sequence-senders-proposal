@@ -1563,7 +1563,7 @@ Possible extra rowspan handling
   <meta content="Bikeshed version d9bd89757, updated Thu Mar 23 10:06:53 2023 -0700" name="generator">
   <link href="none" rel="canonical">
   <link href="https://isocpp.org/favicon.ico" rel="icon">
-  <meta content="fa6de5fdf4066806a1c5b3968e849af192437df5" name="document-revision">
+  <meta content="34e2f93a455706c4411ce5d34a3113a285bff35d" name="document-revision">
 <style>
   pre {
     margin-top: 0px;
@@ -2334,23 +2334,65 @@ All sequence senders complete with <code class="highlight">set_value_t()</code> 
 existing algorithms for senders, but they operate on sequence senders instead. The proposed algorithms are:</p>
    <ul>
     <li data-md>
+     <p><code class="highlight">once(sender) -> sequence-sender</code>: Takes a sender and returns a sequence sender that emits the value of the input sender once.</p>
+     <p>Example:</p>
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>r</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>));</c->
+<c- k>auto</c-> <c- n>i</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>first_value</c-><c- p>(</c-><c- n>r</c-><c- p>)).</c-><c- n>value</c-><c- p>();</c-> <c- c1>// returns 42</c->
+</pre>
+    <li data-md>
+     <p><code class="highlight">ignore_all(sequence-sender) -> sender</code>: Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.</p>
+     <p>Example:</p>
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>r</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>));</c->
+<c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>ignore_all</c-><c- p>(</c-><c- n>once</c-><c- p>));</c->
+</pre>
+    <li data-md>
+     <p><code class="highlight">first_value(seqeuence-sender) -> sender</code>: Returns a sender that completes with the first element of a sequence sender.</p>
+     <p>Example:</p>
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>first</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>first_value</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>repeat</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>)));</c->
+<c- k>auto</c-> <c- n>i</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>r</c-><c- p>).</c-><c- n>value</c-><c- p>();</c-> <c- c1>// returns 42</c->
+</pre>
+    <li data-md>
+     <p><code class="highlight">repeat</code>: Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
+If one of the elements completes with <code class="highlight">set_stopped_t()</code> it is interpreted as a break signal and the sequence sender completes with <code class="highlight">set_value_t()</code>.</p>
+     <p>Example:</p>
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>r</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>repeat</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>))</c->
+       <c- o>|</c-> <c- n>execution</c-><c- o>::</c-><c- n>let_value_each</c-><c- p>([](</c-><c- b>int</c-> <c- n>i</c-><c- p>)</c-> <c- p>{</c->
+           <c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- n>i</c-> <c- o>&lt;&lt;</c-> <c- n>std</c-><c- o>::</c-><c- n>endl</c-><c- p>;</c->      <c- c1>// Prints 42</c->
+           <c- k>return</c-> <c- n>execution</c-><c- o>::</c-><c- n>just_stopped</c-><c- p>();</c-> <c- c1>// break the loop after printing 42 once</c->
+         <c- p>});</c->
+<c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>ignore_all</c-><c- p>(</c-><c- n>r</c-><c- p>));</c-> <c- c1>// repeat will complete with set_value_t()</c->
+</pre>
+    <li data-md>
      <p><code class="highlight">transform_each</code>: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:</p>
      <ol>
       <li data-md>
        <p><code class="highlight">let_[value,error,stopped]_each</code></p>
       <li data-md>
-       <p><code class="highlight">then_each</code></p>
+       <p><code class="highlight">then_each(input, f)</code> is equivalent to <code class="highlight">transform_each(input, then(f))</code></p>
       <li data-md>
        <p><code class="highlight">upon_[value,error,stopped]_each</code></p>
      </ol>
+     <p>Example:</p>
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>snd1</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>then_each</c-><c- p>(</c-><c- n>input</c-><c- p>,</c-> <c- p>[](</c-><c- k>auto</c-><c- o>&amp;&amp;</c-><c- p>...</c-> <c- n>args</c-><c- p>)</c-> <c- p>{</c->
+  <c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- s>"Args of sequence element: "</c-><c- p>;</c->
+  <c- p>(</c-><c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- n>args</c-><c- p>,</c-> <c- p>...);</c->
+  <c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- n>std</c-><c- o>::</c-><c- n>endl</c-><c- p>;</c->
+<c- p>});</c->
+</pre>
     <li data-md>
-     <p><code class="highlight">zip</code>: Combines the elements of <code class="highlight">n</code> sequence senders into a single sequence sender.</p>
-    <li data-md>
-     <p><code class="highlight">ignore_all</code>: Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.</p>
-    <li data-md>
-     <p><code class="highlight">first[_value]</code>: Returns a sender that completes with the first element of a sequence sender.</p>
-    <li data-md>
-     <p><code class="highlight">repeat</code>: Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.</p>
+     <p><code class="highlight">zip</code>: Combines the elements of <code class="highlight">n</code> sequence senders into a single sequence sender.
+This algorithm is similar to the <code class="highlight">when_all</code> algorithm for senders except that it combines the elements of the input sequence senders instead of the senders themselves.
+The <code class="highlight">set_next</code> CPO will be called only once for one generation of elements of the input sequence senders.
+If a <em>zipped operation</em> is stopped or an error occurs, all input sequence senders are stopped and the zipped operation completes with <code class="highlight">set_value_t()</code>.</p>
+     <p>Example:</p>
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>input1</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>));</c->
+<c- k>auto</c-> <c- n>input2</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>24</c-><c- p>));</c->
+<c- k>auto</c-> <c- n>zipped</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>zip</c-><c- p>(</c-><c- n>input1</c-><c- p>,</c-> <c- n>input2</c-><c- p>)</c->
+            <c- o>|</c-> <c- n>execution</c-><c- o>::</c-><c- n>then_each</c-><c- p>([](</c-><c- b>int</c-> <c- n>i</c-><c- p>,</c-> <c- b>int</c-> <c- n>j</c-><c- p>)</c-> <c- p>{</c->
+                <c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- n>i</c-> <c- o>&lt;&lt;</c-> <c- s>" "</c-> <c- o>&lt;&lt;</c-> <c- n>j</c-> <c- o>&lt;&lt;</c-> <c- n>std</c-><c- o>::</c-><c- n>endl</c-><c- p>;</c-> <c- c1>// Prints 42 24</c->
+              <c- p>});</c->
+<c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>ignore_all</c-><c- p>(</c-><c- n>zipped</c-><c- p>));</c->
+</pre>
    </ul>
   </main>
 <script>
