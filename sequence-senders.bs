@@ -245,13 +245,69 @@ All sequence senders complete with `set_value_t()` on their success path and the
 The proposed design also introduces a new set of algorithms for sequence senders. These algorithms are similar to the
 existing algorithms for senders, but they operate on sequence senders instead. The proposed algorithms are:
 
-* `transform_each`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:
+* `once(sender) -> sequence-sender`: Takes a sender and returns a sequence sender that emits the value of the input sender once.
 
+    Example:
+    ```cpp
+      auto r = execution::once(execution::just(42));
+      auto i = execution::sync_wait(execution::first_value(r)).value(); // returns 42
+    ```
+
+* `ignore_all(sequence-sender) -> sender`: Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.
+
+    Example:
+    ```cpp
+      auto r = execution::once(execution::just(42));
+      execution::sync_wait(execution::ignore_all(once));
+    ```
+
+* `first_value(seqeuence-sender) -> sender`: Returns a sender that completes with the first element of a sequence sender.
+
+    Example:
+    ```cpp
+      auto first = execution::first_value(execution::repeat(execution::just(42)));
+      auto i = execution::sync_wait(r).value(); // returns 42
+    ```
+
+* `repeat`: Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
+    If one of the elements completes with `set_stopped_t()` it is interpreted as a break signal and the sequence sender completes with `set_value_t()`.
+
+    Example:
+    ```cpp
+      auto r = execution::repeat(execution::just(42))
+             | execution::let_value_each([](int i) {
+                 std::cout << i << std::endl;      // Prints 42
+                 return execution::just_stopped(); // break the loop after printing 42 once
+               });
+      execution::sync_wait(execution::ignore_all(r)); // repeat will complete with set_value_t()
+    ```
+
+* `transform_each`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:
     1. `let_[value,error,stopped]_each`
-    2. `then_each`
+    2. `then_each(input, f)` is equivalent to `transform_each(input, then(f))`
     3. `upon_[value,error,stopped]_each`
 
-* `zip`: Combines the elements of `n` sequence senders into a single sequence sender.
-* `ignore_all`: Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.
-* `first[_value]`: Returns a sender that completes with the first element of a sequence sender.
-* `repeat`: Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
+    Example:
+    ```cpp
+    auto snd1 = execution::then_each(input, [](auto&&... args) {
+      std::cout << "Args of sequence element: ";
+      (std::cout << args, ...);
+      std::cout << std::endl;
+    });
+    ```
+
+* `zip`: Combines the elements of `n` sequence senders into a single sequence sender. 
+    This algorithm is similar to the `when_all` algorithm for senders except that it combines the elements of the input sequence senders instead of the senders themselves.
+    The `set_next` CPO will be called only once for one generation of elements of the input sequence senders.
+    If a *zipped operation* is stopped or an error occurs, all input sequence senders are stopped and the zipped operation completes with `set_value_t()`.
+    
+    Example:
+    ```cpp
+    auto input1 = execution::once(execution::just(42));
+    auto input2 = execution::once(execution::just(24));
+    auto zipped = execution::zip(input1, input2)
+                | execution::then_each([](int i, int j) {
+                    std::cout << i << " " << j << std::endl; // Prints 42 24
+                  });
+    execution::sync_wait(execution::ignore_all(zipped));
+    ```
