@@ -6,8 +6,6 @@ Revision: 1
 Status: D
 Group: WG21
 Audience: SG1, LEWG
-Editor: Lewis Baker (?), lewissbaker@gmail.com
-Editor: Kirk Shoop (?), kirk.shoop@gmail.com
 Editor: Maikel Nadolski, maikel.nadolski@gmail.com
 URL: none
 !Source: <a href="https://github.com/maikel/sequence-senders-proposal/blob/main/execution.bs">GitHub</a>
@@ -180,12 +178,12 @@ sender that emits a sequence of values over time.
 # Motivation #{#motivation}
 
 There are many situations where it is useful to represent a potentially infinite sequence of values that may arrive
-asynchronously. For example, accepting new network connections or handling user input in a graphical user interface.
+asynchronously and in parallel.
+For example, handling user input in a graphical user interface or accepting new network connections.
 
 To address this limitation, we propose the concept of "sequence senders", which extend the capabilities of senders to
 represent possibly infinite sequences of values that may arrive in parallel. Sequence senders utilize an additional
-receiver CPO,
-`set_next`, to signal the arrival of a sequence element.
+receiver CPO, `set_next`, to signal the arrival of a sequence element.
 
 Sequence senders are inspired by the `Observable` concept of the reactive extensions (Rx) library. The Rx library
 provides a powerful mechanism for building reactive, event-driven applications by representing sequences of events as
@@ -210,33 +208,37 @@ additional channel with its `set_next` CPO. In this case, only one CPO, `run`, w
 concurrent environment. The `run` CPO would return a sequence sender that sends only one value, which is a handle to the
 acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource. Moreover, a
 default implementation for such a `run` sequence sender can be provided for any class `Resource` that provides
-implementations for `open` and `close` CPOs. A reference implementation can be found in `NVIDIA/stdexec`.
-
-Note: Maikel: This is my interpretation of the proposed extension. We actually have to keep this up-to-date with Kirk's proposal.
+implementations for `do_open` and `do_close` CPOs.
 
 # Design Overview #{#design-overview}
 
 ## Sequence Receiver
 
-The proposed design extends the existing receiver concept with an additional `set_next` CPO. `set_next` is similar to
-the
-`set_value` CPO, but instead of completing the receiver, it signals the arrival of a new element in the sequence. The
-`set_next` CPO expects an input sender that completes with values and returns a sender that completes with
-`set_value_t()`.
-This allows `set_next` to be called without having a value ready, and its body can usually be a simple expression from
-input sender to result sender.
+The proposed design extends the existing receiver concept with an additional `set_next` CPO.
+`set_next` is similar to the `set_value` CPO, but instead of completing the receiver, it signals the arrival of a new element in the sequence.
+Its function signature is based on senders, i. e. it takes a lvalue reference to the receiver and an input sender,
+```cpp
+struct set_next_t {
+  template <receiver Receiver, sender Sender>
+    requires tag_invocable<set_next_t, Receiver&, Sender>
+          && sender_of<tag_invoke_result_t<set_next_t, Receiver&, Sender>, set_value_t()>
+  auto operator()(Receiver& rcvr, Sender&& sndr) const noexcept
+    -> tag_invoke_result_t<set_next_t, Receiver&, Sender> {
+    static_assert(nothrow_tag_invocable<set_next_t, Receiver&, Sender>);
+    return tag_invoke(*this, rcvr, (Sender&&) sndr);
+  }
+};
+```
+The `set_next` CPO expects an input sender that completes with values and returns a sender that completes with `set_value_t()`.
+This allows `set_next` to be called without having a value ready and gives fine-grained control over elementwise operations.
 
+Given any completion signatures `Sigs` and a receiver `R rcvr`. `R` satisfies the `sequence_reveiver_of<R, Sigs>` concept if `set_next(rcvr, (S&&) sndr);` is valid expression for an anonymous sender `S sndr` in `env_of_t<R>` with `Sigs = completion_signatures_of_t<S, env_of_t<R>>`.
 ## Sequence Sender
 
-Sequence senders connect to sequence receivers through a new CPO called `sequence_connect`.
+Each sequence sender is also a sender and provides an implementation of the `get_completion_signatures_t` CPO.
+However, instead of using `connect` to connect to receivers, sequence senders use `sequence_connect` to connect to sequence receivers.
+All sequence senders complete with `set_value_t()` on their success path and the `completion_signatures` of a sequence sender describe the `completion_signatures` of the input sender passed to `set_next`.
 
-Each sequence sender is also a sender and provides an implementation of the `get_completion_signatures_t` CPO. However,
-instead of using `connect` to connect to receivers, sequence senders use `sequence_connect` to connect to sequence
-receivers.
-All sequence senders complete with `set_value_t()` on their success path and the `completion_signatures` of a sequence
-sender describe the `completion_signatures` of the input sender passed to `set_next`.
-
-Issue: How to make a distinction for `set_error_t(E)` completions of the sequence-sender and its input senders? Could they be different. Maybe we shouldn't reuse the `completion_signatures`.
 
 ## Sequence Sender Algorithms
 
