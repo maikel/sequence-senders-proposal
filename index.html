@@ -1563,7 +1563,7 @@ Possible extra rowspan handling
   <meta content="Bikeshed version d9bd89757, updated Thu Mar 23 10:06:53 2023 -0700" name="generator">
   <link href="none" rel="canonical">
   <link href="https://isocpp.org/favicon.ico" rel="icon">
-  <meta content="a446be30286bfcdec212435f4410c5294c39e6d9" name="document-revision">
+  <meta content="729913dd647517dda561802595d554a4f6c34737" name="document-revision">
 <style>
   pre {
     margin-top: 0px;
@@ -2272,7 +2272,19 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
      <ol class="toc">
       <li><a href="#sequence-receiver"><span class="secno">4.1</span> <span class="content">Sequence Receiver</span></a>
       <li><a href="#sequence-sender"><span class="secno">4.2</span> <span class="content">Sequence Sender</span></a>
-      <li><a href="#sequence-sender-algorithms"><span class="secno">4.3</span> <span class="content">Sequence Sender Algorithms</span></a>
+      <li>
+       <a href="#sequence-sender-algorithms"><span class="secno">4.3</span> <span class="content">Sequence Sender Algorithms</span></a>
+       <ol class="toc">
+        <li><a href="#sequence-sender-factories"><span class="secno">4.3.1</span> <span class="content">Sequence Sender Factories</span></a>
+        <li><a href="#sequence-sender-sinks"><span class="secno">4.3.2</span> <span class="content">Sequence Sender Sinks</span></a>
+        <li><a href="#sequence-sender-adaptors"><span class="secno">4.3.3</span> <span class="content">Sequence Sender Adaptors</span></a>
+       </ol>
+     </ol>
+    <li>
+     <a href="#specification"><span class="secno">5</span> <span class="content">Specification</span></a>
+     <ol class="toc">
+      <li><a href="#receiver-concepts"><span class="secno">5.1</span> <span class="content">Receiver concepts</span></a>
+      <li><a href="#sender-concepts"><span class="secno">5.2</span> <span class="content">Sender concepts</span></a>
      </ol>
    </ol>
   </nav>
@@ -2304,23 +2316,12 @@ The <code class="highlight">run</code> CPO does the actual work of acquiring and
    <p>However, using sequence senders, we can further simplify this model since sequence senders naturally provide an
 additional channel with its <code class="highlight">set_next</code> CPO. In this case, only one CPO, <code class="highlight">run</code>, would be needed to safely use resources in a
 concurrent environment. The <code class="highlight">run</code> CPO would return a sequence sender that sends only one value, which is a handle to the
-acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource. Moreover, a
-default implementation for such a <code class="highlight">run</code> sequence sender can be provided for any class <code class="highlight">Resource</code> that provides
-implementations for <code class="highlight">do_open</code> and <code class="highlight">do_close</code> CPOs.</p>
+acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource.</p>
    <h2 class="heading settled" data-level="4" id="design-overview"><span class="secno">4. </span><span class="content">Design Overview</span><a class="self-link" href="#design-overview"></a></h2>
    <h3 class="heading settled" data-level="4.1" id="sequence-receiver"><span class="secno">4.1. </span><span class="content">Sequence Receiver</span><a class="self-link" href="#sequence-receiver"></a></h3>
    <p>The proposed design extends the existing receiver concept with an additional <code class="highlight">set_next</code> CPO. <code class="highlight">set_next</code> is similar to the <code class="highlight">set_value</code> CPO, but instead of completing the receiver, it signals the arrival of a new element in the sequence.
-Its function signature is based on senders, i. e. it takes a lvalue reference to the receiver and an input sender,</p>
-<pre class="language-cpp highlight"><c- k>struct</c-> <c- nc>set_next_t</c-> <c- p>{</c->
-  <c- k>template</c-> <c- o>&lt;</c-><c- n>receiver</c-> <c- n>Receiver</c-><c- p>,</c-> <c- n>sender</c-> <c- n>Sender</c-><c- o>></c->
-    <c- k>requires</c-> <c- n>tag_invocable</c-><c- o>&lt;</c-><c- n>set_next_t</c-><c- p>,</c-> <c- n>Receiver</c-><c- o>&amp;</c-><c- p>,</c-> <c- n>Sender</c-><c- o>></c->
-          <c- o>&amp;&amp;</c-> <c- n>sender_of</c-><c- o>&lt;</c-><c- n>tag_invoke_result_t</c-><c- o>&lt;</c-><c- n>set_next_t</c-><c- p>,</c-> <c- n>Receiver</c-><c- o>&amp;</c-><c- p>,</c-> <c- n>Sender</c-><c- o>></c-><c- p>,</c-> <c- n>set_value_t</c-><c- p>()</c-><c- o>></c->
-  <c- k>auto</c-> <c- k>operator</c-><c- p>()(</c-><c- n>Receiver</c-><c- o>&amp;</c-> <c- n>rcvr</c-><c- p>,</c-> <c- n>Sender</c-><c- o>&amp;&amp;</c-> <c- n>sndr</c-><c- p>)</c-> <c- k>const</c-> <c- k>noexcept</c->
-    <c- o>-></c-> <c- n>tag_invoke_result_t</c-><c- o>&lt;</c-><c- n>set_next_t</c-><c- p>,</c-> <c- n>Receiver</c-><c- o>&amp;</c-><c- p>,</c-> <c- n>Sender</c-><c- o>></c-> <c- p>{</c->
-    <c- k>static_assert</c-><c- p>(</c-><c- n>nothrow_tag_invocable</c-><c- o>&lt;</c-><c- n>set_next_t</c-><c- p>,</c-> <c- n>Receiver</c-><c- o>&amp;</c-><c- p>,</c-> <c- n>Sender</c-><c- o>></c-><c- p>);</c->
-    <c- k>return</c-> <c- n>tag_invoke</c-><c- p>(</c-><c- o>*</c-><c- k>this</c-><c- p>,</c-> <c- n>rcvr</c-><c- p>,</c-> <c- p>(</c-><c- n>Sender</c-><c- o>&amp;&amp;</c-><c- p>)</c-> <c- n>sndr</c-><c- p>);</c->
-  <c- p>}</c->
-<c- p>};</c->
+Its function signature is based on senders, i. e.</p>
+<pre class="language-cpp highlight"><c- n>sender_of</c-><c- o>&lt;</c-><c- n>set_value_t</c-><c- p>()</c-><c- o>></c-> <c- k>auto</c-> <c- n>set_next</c-><c- p>(</c-><c- n>receiver</c-> <c- k>auto</c-><c- o>&amp;</c-> <c- n>rcvr</c-><c- p>,</c-> <c- n>sender</c-> <c- k>auto</c-><c- o>&amp;&amp;</c-> <c- n>sndr</c-><c- p>);</c->
 </pre>
    The <code class="highlight">set_next</code> CPO expects an input sender that completes with values and returns a sender that completes with <code class="highlight">set_value_t()</code>.
 This allows <code class="highlight">set_next</code> to be called without having a value ready and gives fine-grained control over elementwise operations. 
@@ -2332,27 +2333,18 @@ All sequence senders complete with <code class="highlight">set_value_t()</code> 
    <h3 class="heading settled" data-level="4.3" id="sequence-sender-algorithms"><span class="secno">4.3. </span><span class="content">Sequence Sender Algorithms</span><a class="self-link" href="#sequence-sender-algorithms"></a></h3>
    <p>The proposed design also introduces a new set of algorithms for sequence senders. These algorithms are similar to the
 existing algorithms for senders, but they operate on sequence senders instead. The proposed algorithms are:</p>
+   <h4 class="heading settled" data-level="4.3.1" id="sequence-sender-factories"><span class="secno">4.3.1. </span><span class="content">Sequence Sender Factories</span><a class="self-link" href="#sequence-sender-factories"></a></h4>
    <ul>
     <li data-md>
-     <p><code class="highlight">once(sender) -> sequence-sender</code>: Takes a sender and returns a sequence sender that emits the value of the input sender once.</p>
+     <p><code class="highlight">once(sender) -> sequence-sender</code>:
+Takes a sender and returns a sequence sender that emits the value of the input sender once.</p>
      <p>Example:</p>
-<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>r</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>));</c->
-<c- k>auto</c-> <c- n>i</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>first_value</c-><c- p>(</c-><c- n>r</c-><c- p>)).</c-><c- n>value</c-><c- p>();</c-> <c- c1>// returns 42</c->
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>once</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>));</c->
+<c- k>auto</c-> <c- n>i</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>first_value</c-><c- p>(</c-><c- n>once</c-><c- p>)).</c-><c- n>value</c-><c- p>();</c-> <c- c1>// returns 42</c->
 </pre>
     <li data-md>
-     <p><code class="highlight">ignore_all(sequence-sender) -> sender</code>: Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.</p>
-     <p>Example:</p>
-<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>r</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>));</c->
-<c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>ignore_all</c-><c- p>(</c-><c- n>once</c-><c- p>));</c->
-</pre>
-    <li data-md>
-     <p><code class="highlight">first_value(seqeuence-sender) -> sender</code>: Returns a sender that completes with the first element of a sequence sender.</p>
-     <p>Example:</p>
-<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>first</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>first_value</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>repeat</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>)));</c->
-<c- k>auto</c-> <c- n>i</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>r</c-><c- p>).</c-><c- n>value</c-><c- p>();</c-> <c- c1>// returns 42</c->
-</pre>
-    <li data-md>
-     <p><code class="highlight">repeat</code>: Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
+     <p><code class="highlight">repeat(sender) -> sequence-sender</code>:
+Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
 If one of the elements completes with <code class="highlight">set_stopped_t()</code> it is interpreted as a break signal and the sequence sender completes with <code class="highlight">set_value_t()</code>.</p>
      <p>Example:</p>
 <pre class="language-cpp highlight"><c- k>auto</c-> <c- n>r</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>repeat</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>))</c->
@@ -2362,8 +2354,27 @@ If one of the elements completes with <code class="highlight">set_stopped_t()</c
          <c- p>});</c->
 <c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>ignore_all</c-><c- p>(</c-><c- n>r</c-><c- p>));</c-> <c- c1>// repeat will complete with set_value_t()</c->
 </pre>
+   </ul>
+   <h4 class="heading settled" data-level="4.3.2" id="sequence-sender-sinks"><span class="secno">4.3.2. </span><span class="content">Sequence Sender Sinks</span><a class="self-link" href="#sequence-sender-sinks"></a></h4>
+   <ul>
     <li data-md>
-     <p><code class="highlight">transform_each</code>: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:</p>
+     <p><code class="highlight">ignore_all(sequence-sender) -> sender</code>:
+Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.</p>
+     <p>Example:</p>
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>once</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>));</c->
+<c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>ignore_all</c-><c- p>(</c-><c- n>once</c-><c- p>));</c->
+</pre>
+    <li data-md>
+     <p><code class="highlight">first_value(seqeuence-sender) -> sender</code>: Returns a sender that completes with the first element of a sequence sender.</p>
+     <p>Example:</p>
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>first</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>first_value</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>repeat</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>42</c-><c- p>)));</c->
+<c- k>auto</c-> <c- n>i</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>first</c-><c- p>).</c-><c- n>value</c-><c- p>();</c-> <c- c1>// returns 42</c->
+</pre>
+   </ul>
+   <h4 class="heading settled" data-level="4.3.3" id="sequence-sender-adaptors"><span class="secno">4.3.3. </span><span class="content">Sequence Sender Adaptors</span><a class="self-link" href="#sequence-sender-adaptors"></a></h4>
+   <ul>
+    <li data-md>
+     <p><code class="highlight">transform_each(sequence-sender) -> sequence-sender</code>: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:</p>
      <ol>
       <li data-md>
        <p><code class="highlight">let_[value,error,stopped]_each</code></p>
@@ -2373,14 +2384,13 @@ If one of the elements completes with <code class="highlight">set_stopped_t()</c
        <p><code class="highlight">upon_[value,error,stopped]_each</code></p>
      </ol>
      <p>Example:</p>
-<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>snd1</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>then_each</c-><c- p>(</c-><c- n>input</c-><c- p>,</c-> <c- p>[](</c-><c- k>auto</c-><c- o>&amp;&amp;</c-><c- p>...</c-> <c- n>args</c-><c- p>)</c-> <c- p>{</c->
-  <c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- s>"Args of sequence element: "</c-><c- p>;</c->
-  <c- p>(</c-><c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- n>args</c-><c- p>,</c-> <c- p>...);</c->
-  <c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- n>std</c-><c- o>::</c-><c- n>endl</c-><c- p>;</c->
+<pre class="language-cpp highlight"><c- k>auto</c-> <c- n>just_values</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>once</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>just</c-><c- p>(</c-><c- mi>0</c-><c- p>,</c-> <c- mi>1</c-><c- p>,</c-> <c- mi>2</c-><c- p>));</c->
+<c- k>auto</c-> <c- n>snd1</c-> <c- o>=</c-> <c- n>execution</c-><c- o>::</c-><c- n>then_each</c-><c- p>(</c-><c- n>just_values</c-><c- p>,</c-> <c- p>[](</c-><c- b>int</c-> <c- n>i</c-><c- p>,</c-> <c- b>int</c-> <c- n>j</c-><c- p>,</c-> <c- b>int</c-> <c- n>k</c-><c- p>)</c-> <c- p>{</c->
+  <c- n>std</c-><c- o>::</c-><c- n>cout</c-> <c- o>&lt;&lt;</c-> <c- n>i</c-> <c- o>&lt;&lt;</c-> <c- s>" "</c-> <c- o>&lt;&lt;</c-> <c- n>j</c-> <c- o>&lt;&lt;</c-> <c- s>" "</c-> <c- o>&lt;&lt;</c-> <c- n>k</c-> <c- o>&lt;&lt;</c-> <c- n>std</c-><c- o>::</c-><c- n>endl</c-><c- p>;</c->
 <c- p>});</c->
 </pre>
     <li data-md>
-     <p><code class="highlight">zip</code>: Combines the elements of <code class="highlight">n</code> sequence senders into a single sequence sender.
+     <p><code class="highlight">zip(sequence-senders, ...) -> sequence-sender</code>: Combines the elements of <code class="highlight">n</code> sequence senders into a single sequence sender.
 This algorithm is similar to the <code class="highlight">when_all</code> algorithm for senders except that it combines the elements of the input sequence senders instead of the senders themselves.
 The <code class="highlight">set_next</code> CPO will be called only once for one generation of elements of the input sequence senders.
 If a <em>zipped operation</em> is stopped or an error occurs, all input sequence senders are stopped and the zipped operation completes with <code class="highlight">set_value_t()</code>.</p>
@@ -2394,6 +2404,34 @@ If a <em>zipped operation</em> is stopped or an error occurs, all input sequence
 <c- n>execution</c-><c- o>::</c-><c- n>sync_wait</c-><c- p>(</c-><c- n>execution</c-><c- o>::</c-><c- n>ignore_all</c-><c- p>(</c-><c- n>zipped</c-><c- p>));</c->
 </pre>
    </ul>
+   <h2 class="heading settled" data-level="5" id="specification"><span class="secno">5. </span><span class="content">Specification</span><a class="self-link" href="#specification"></a></h2>
+   <h3 class="heading settled" data-level="5.1" id="receiver-concepts"><span class="secno">5.1. </span><span class="content">Receiver concepts</span><a class="self-link" href="#receiver-concepts"></a></h3>
+   <ol>
+    <li data-md>
+     <p>Let <code class="highlight">some-sender-of&lt;Signatures></code> denote some anonymous sender that completes with <code class="highlight">Signatures</code>.
+The <code class="highlight">sequence_receiver_of</code> concept defines the requirements for a sequence receiver type that is usable as the first argument to <code class="highlight">set_next(rcvr, some-sender-of&lt;Signatures>)</code> for some given set of completion signatures <code class="highlight">Signatures</code>.</p>
+<pre class="language-cpp highlight"><c- k>template</c-> <c- o>&lt;</c-><c- k>class</c-> <c- nc>Signatures</c-><c- o>></c->
+  <c- k>struct</c-> <c- nc>some</c-><c- o>-</c-><c- n>sender</c-><c- o>-</c-><c- n>of</c-><c- p>;</c-> <c- c1>// exposition only</c->
+
+<c- k>template</c-> <c- o>&lt;</c-><c- k>class</c-> <c- nc>Signatures</c-><c- p>,</c-> <c- k>class</c-> <c- nc>R</c-><c- o>></c->
+  <c- k>concept</c-> <c- nc>valid</c-><c- o>-</c-><c- n>next</c-><c- o>-</c-><c- n>completions</c-><c- o>-</c-><c- k>for</c-> <c- o>=</c-> <c- c1>// exposition only</c->
+    <c- n>callable</c-><c- o>&lt;</c-><c- n>set_next</c-><c- p>,</c-> <c- n>remove_cvref_t</c-><c- o>&lt;</c-><c- n>R</c-><c- o>>&amp;</c-><c- p>,</c-> <c- n>some</c-><c- o>-</c-><c- n>sender</c-><c- o>-</c-><c- n>of</c-><c- o>&lt;</c-><c- n>Signatures</c-><c- o>>></c-><c- p>;</c->
+
+<c- k>template</c-> <c- o>&lt;</c-><c- k>class</c-> <c- nc>R</c-><c- p>,</c-> <c- k>class</c-> <c- nc>Signatures</c-><c- o>></c->
+  <c- k>concept</c-> <c- nc>sequence_receiver_of</c-> <c- o>=</c->
+    <c- n>receiver_of</c-><c- o>&lt;</c-><c- n>R</c-><c- p>,</c-> <c- n>completion_signatures</c-><c- o>&lt;</c-><c- n>set_value_t</c-><c- p>()</c-><c- o>>></c-> <c- o>&amp;&amp;</c->
+    <c- n>valid</c-><c- o>-</c-><c- n>next</c-><c- o>-</c-><c- n>completions</c-><c- o>-</c-><c- k>for</c-><c- o>&lt;</c-><c- n>Signatures</c-><c- p>,</c-> <c- n>R</c-><c- o>></c-><c- p>;</c->
+</pre>
+   </ol>
+   <h3 class="heading settled" data-level="5.2" id="sender-concepts"><span class="secno">5.2. </span><span class="content">Sender concepts</span><a class="self-link" href="#sender-concepts"></a></h3>
+<pre class="language-cpp highlight"><c- k>template</c-> <c- o>&lt;</c-><c- k>class</c-> <c- nc>S</c-><c- p>,</c-> <c- k>class</c-> <c- nc>R</c-><c- o>></c->
+<c- k>concept</c-> <c- nc>sequence_sender_to</c-> <c- o>=</c->
+  <c- n>sender_in</c-><c- o>&lt;</c-><c- n>S</c-><c- p>,</c-> <c- n>env_of_t</c-><c- o>&lt;</c-><c- n>R</c-><c- o>>></c->
+  <c- o>&amp;&amp;</c-> <c- n>sequence_receiver_of</c-><c- o>&lt;</c-><c- n>R</c-><c- p>,</c-> <c- n>completion_signatures_of_t</c-><c- o>&lt;</c-><c- n>S</c-><c- p>,</c-> <c- n>env_of_t</c-><c- o>&lt;</c-><c- n>R</c-><c- o>>>></c->
+  <c- o>&amp;&amp;</c-> <c- k>requires</c-><c- p>(</c-><c- n>S</c-><c- o>&amp;&amp;</c-> <c- n>sndr</c-><c- p>,</c-> <c- n>R</c-><c- o>&amp;&amp;</c-> <c- n>rcvr</c-><c- p>)</c-> <c- p>{</c->
+       <c- p>{</c-> <c- n>sequence_connect</c-><c- p>(</c-><c- n>forward</c-><c- o>&lt;</c-><c- n>S</c-><c- o>></c-><c- p>(</c-><c- n>sndr</c-><c- p>),</c-> <c- n>forward</c-><c- o>&lt;</c-><c- n>R</c-><c- o>></c-><c- p>(</c-><c- n>rcvr</c-><c- p>))</c-> <c- p>}</c-> <c- o>-></c-> <c- n>operation_state</c-><c- p>;</c->
+     <c- p>};</c->
+</pre>
   </main>
 <script>
 (function() {
