@@ -217,8 +217,12 @@ Its function signature is based on senders, i. e.
 ```cpp
 sender_of<set_value_t()> auto set_next(receiver auto& rcvr, sender auto&& sndr);
 ```
-The `set_next` CPO expects an input sender that completes with values and returns a sender that completes with `set_value_t()`.
 This allows `set_next` to be called without having a value ready and gives fine-grained control over elementwise operations.
+This CPO expects an input sender that completes with some values and returns a sender that completes with `set_value_t()`.
+The returned sender completes if the values passed to the receiver have successfully been processed and it is the analogue of a body of a for loop.
+
+Only if all operations associated to a sender that was returned from `set_next` have been completed, the receiver is allowed to be completed.
+This is known as the sequence receiver contract.
 
 ## Sequence Sender
 
@@ -328,6 +332,10 @@ existing algorithms for senders, but they operate on sequence senders instead. T
         valid-next-completions-for<Signatures, R>;
     ```
 
+### `set_next` [exec.set_next]
+
+1. `set_next` is a function that transforms an input sender into a sender that completes with `set_value_t()` if the completion of the input sender has successfully been processed. The expression `set_next(R, S)` for some subexpressions `R` and `S` is ill-formed if `R` is not an lvalue. Otherwise the expression is equivalent to `mandate-nothrow-call(tag_invoke, set_next, R, S)`.
+  
 ## Sender concepts
 
 ```cpp
@@ -339,3 +347,21 @@ existing algorithms for senders, but they operate on sequence senders instead. T
          { sequence_connect(forward<S>(sndr), forward<R>(rcvr)) } -> operation_state;
        };
 ```
+
+### `execution::sequence_connect` [exec.sequence_connect]
+
+1. `sequence_connect` connects ([async.op]) a sequence sender with a sequence receiver, producing an operation state object that is associated with the resulting asynchronous operation.
+
+    The name `sequence_connect` denotes a customization point object. For subexpressions `s` and `r`, let `S` be `decltype((s))` and `R` be `decltype((r))`.
+    If `S` does not satisfy `sender` or if `R` does not satisfy `receiver`, `sequence_connect(s, r)` is ill-formed. Otherwise, the expression `sequence_connect(s, r)` is expression-equivalent to:
+
+    `tag_invoke(connect, s, r)`, if the constraints below are satisfied. If the function selected by `tag_invoke` does not return an operation state for which `start` starts the associated asynchronous operation, the behavior of calling `sequence_connect(s, r)` is undefined.
+
+    - Constraints:
+        ```
+        sender_in<S, env_of_t<R>> &&
+        sequence_receiver_of<R, completion_signatures_of_t<S, env_of_t<R>>> &&
+        tag_invocable<connect_t, S, R>
+        ```
+
+    - Mandates: The type of the `tag_invoke` expression above satisfies `operation_state`.
