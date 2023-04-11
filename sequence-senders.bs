@@ -206,9 +206,7 @@ with an enclosing `when_all` algorithm provides a safe way to acquire and releas
 However, using sequence senders, we can further simplify this model since sequence senders naturally provide an
 additional channel with its `set_next` CPO. In this case, only one CPO, `run`, would be needed to safely use resources in a
 concurrent environment. The `run` CPO would return a sequence sender that sends only one value, which is a handle to the
-acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource. Moreover, a
-default implementation for such a `run` sequence sender can be provided for any class `Resource` that provides
-implementations for `do_open` and `do_close` CPOs.
+acquired resource. Whenever the sequence sender stops, it would automatically release the acquired resource.
 
 # Design Overview #{#design-overview}
 
@@ -216,18 +214,9 @@ implementations for `do_open` and `do_close` CPOs.
 
 The proposed design extends the existing receiver concept with an additional `set_next` CPO.
 `set_next` is similar to the `set_value` CPO, but instead of completing the receiver, it signals the arrival of a new element in the sequence.
-Its function signature is based on senders, i. e. it takes a lvalue reference to the receiver and an input sender,
+Its function signature is based on senders, i. e.
 ```cpp
-struct set_next_t {
-  template <receiver Receiver, sender Sender>
-    requires tag_invocable<set_next_t, Receiver&, Sender>
-          && sender_of<tag_invoke_result_t<set_next_t, Receiver&, Sender>, set_value_t()>
-  auto operator()(Receiver& rcvr, Sender&& sndr) const noexcept
-    -> tag_invoke_result_t<set_next_t, Receiver&, Sender> {
-    static_assert(nothrow_tag_invocable<set_next_t, Receiver&, Sender>);
-    return tag_invoke(*this, rcvr, (Sender&&) sndr);
-  }
-};
+sender_of<set_value_t()> auto set_next(receiver auto& rcvr, sender auto&& sndr);
 ```
 The `set_next` CPO expects an input sender that completes with values and returns a sender that completes with `set_value_t()`.
 This allows `set_next` to be called without having a value ready and gives fine-grained control over elementwise operations.
@@ -245,31 +234,19 @@ All sequence senders complete with `set_value_t()` on their success path and the
 The proposed design also introduces a new set of algorithms for sequence senders. These algorithms are similar to the
 existing algorithms for senders, but they operate on sequence senders instead. The proposed algorithms are:
 
-* `once(sender) -> sequence-sender`: Takes a sender and returns a sequence sender that emits the value of the input sender once.
+### Sequence Sender Factories
+
+* `once(sender) -> sequence-sender`:
+    Takes a sender and returns a sequence sender that emits the value of the input sender once.
 
     Example:
     ```cpp
-      auto r = execution::once(execution::just(42));
-      auto i = execution::sync_wait(execution::first_value(r)).value(); // returns 42
+      auto once = execution::once(execution::just(42));
+      auto i = execution::sync_wait(execution::first_value(once)).value(); // returns 42
     ```
 
-* `ignore_all(sequence-sender) -> sender`: Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.
-
-    Example:
-    ```cpp
-      auto r = execution::once(execution::just(42));
-      execution::sync_wait(execution::ignore_all(once));
-    ```
-
-* `first_value(seqeuence-sender) -> sender`: Returns a sender that completes with the first element of a sequence sender.
-
-    Example:
-    ```cpp
-      auto first = execution::first_value(execution::repeat(execution::just(42)));
-      auto i = execution::sync_wait(r).value(); // returns 42
-    ```
-
-* `repeat`: Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
+* `repeat(sender) -> sequence-sender`:
+    Takes a sender or sequence sender and returns a sequence sender that repeats the input indefinitely.
     If one of the elements completes with `set_stopped_t()` it is interpreted as a break signal and the sequence sender completes with `set_value_t()`.
 
     Example:
@@ -282,21 +259,41 @@ existing algorithms for senders, but they operate on sequence senders instead. T
       execution::sync_wait(execution::ignore_all(r)); // repeat will complete with set_value_t()
     ```
 
-* `transform_each`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:
+### Sequence Sender Sinks
+
+* `ignore_all(sequence-sender) -> sender`:
+    Ignores all elements of a sequence sender and returns a sender that completes when the input sequence sender completes.
+
+    Example:
+    ```cpp
+      auto once = execution::once(execution::just(42));
+      execution::sync_wait(execution::ignore_all(once));
+    ```
+
+* `first_value(seqeuence-sender) -> sender`: Returns a sender that completes with the first element of a sequence sender.
+
+    Example:
+    ```cpp
+      auto first = execution::first_value(execution::repeat(execution::just(42)));
+      auto i = execution::sync_wait(first).value(); // returns 42
+    ```
+
+### Sequence Sender Adaptors
+
+* `transform_each(sequence-sender) -> sequence-sender`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:
     1. `let_[value,error,stopped]_each`
     2. `then_each(input, f)` is equivalent to `transform_each(input, then(f))`
     3. `upon_[value,error,stopped]_each`
 
     Example:
     ```cpp
-    auto snd1 = execution::then_each(input, [](auto&&... args) {
-      std::cout << "Args of sequence element: ";
-      (std::cout << args, ...);
-      std::cout << std::endl;
+    auto just_values = execution::once(execution::just(0, 1, 2));
+    auto snd1 = execution::then_each(just_values, [](int i, int j, int k) {
+      std::cout << i << " " << j << " " << k << std::endl;
     });
     ```
 
-* `zip`: Combines the elements of `n` sequence senders into a single sequence sender. 
+* `zip(sequence-senders, ...) -> sequence-sender`: Combines the elements of `n` sequence senders into a single sequence sender. 
     This algorithm is similar to the `when_all` algorithm for senders except that it combines the elements of the input sequence senders instead of the senders themselves.
     The `set_next` CPO will be called only once for one generation of elements of the input sequence senders.
     If a *zipped operation* is stopped or an error occurs, all input sequence senders are stopped and the zipped operation completes with `set_value_t()`.
@@ -311,3 +308,36 @@ existing algorithms for senders, but they operate on sequence senders instead. T
                   });
     execution::sync_wait(execution::ignore_all(zipped));
     ```
+
+# Specification
+
+## Receiver concepts
+
+1.  Let `some-sender-of<Signatures>` denote some anonymous sender that completes with `Signatures`.
+    The `sequence_receiver_of` concept defines the requirements for a sequence receiver type that is usable as the first argument to `set_next(rcvr, some-sender-of<Signatures>)` for some given set of completion signatures `Signatures`.
+
+    ```cpp
+    template <class Signatures>
+      struct some-sender-of; // exposition only
+
+    template <class Signatures, class R>
+      concept valid-next-completions-for = // exposition only
+        callable<set_next, remove_cvref_t<R>&, some-sender-of<Signatures>>;
+
+    template <class R, class Signatures>
+      concept sequence_receiver_of =
+        receiver_of<R, completion_signatures<set_value_t()>> &&
+        valid-next-completions-for<Signatures, R>;
+    ```
+
+## Sender concepts
+
+```cpp
+  template <class S, class R>
+  concept sequence_sender_to =
+    sender_in<S, env_of_t<R>>
+    && sequence_receiver_of<R, completion_signatures_of_t<S, env_of_t<R>>>
+    && requires(S&& sndr, R&& rcvr) {
+         { sequence_connect(forward<S>(sndr), forward<R>(rcvr)) } -> operation_state;
+       };
+```
