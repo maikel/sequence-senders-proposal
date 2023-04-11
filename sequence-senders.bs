@@ -181,8 +181,7 @@ There are many situations where it is useful to represent a potentially infinite
 asynchronously and in parallel.
 For example, handling user input in a graphical user interface or accepting new network connections.
 
-To address this limitation, we propose the concept of "sequence senders", which extend the capabilities of senders to
-represent possibly infinite sequences of values that may arrive in parallel. Sequence senders utilize an additional
+To address this limitation, we propose the concept of "sequence senders". Sequence senders utilize an additional
 receiver CPO, `set_next`, to signal the arrival of a sequence element.
 
 Sequence senders are inspired by the `Observable` concept of the reactive extensions (Rx) library. The Rx library
@@ -221,7 +220,6 @@ sender_of<set_value_t()> auto set_next(receiver auto& rcvr, sender auto&& sndr);
 The `set_next` CPO expects an input sender that completes with values and returns a sender that completes with `set_value_t()`.
 This allows `set_next` to be called without having a value ready and gives fine-grained control over elementwise operations.
 
-Given any completion signatures `Sigs` and a receiver `R rcvr`. `R` satisfies the `sequence_reveiver_of<R, Sigs>` concept if `set_next(rcvr, (S&&) sndr);` is valid expression for an anonymous sender `S sndr` in `env_of_t<R>` with `Sigs = completion_signatures_of_t<S, env_of_t<R>>`.
 ## Sequence Sender
 
 Each sequence sender is also a sender and provides an implementation of the `get_completion_signatures_t` CPO.
@@ -280,7 +278,7 @@ existing algorithms for senders, but they operate on sequence senders instead. T
 
 ### Sequence Sender Adaptors
 
-* `transform_each(sequence-sender) -> sequence-sender`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:
+* `transform_each(sequence-sender, sender-adaptor) -> sequence-sender`: Transforms the elements of a sequence sender using a sender adaptor. The following named algorithms are special cases of this algorithm:
     1. `let_[value,error,stopped]_each`
     2. `then_each(input, f)` is equivalent to `transform_each(input, then(f))`
     3. `upon_[value,error,stopped]_each`
